@@ -1,0 +1,147 @@
+\chapter{Fairness Violation Metric}
+\label{chap}
+
+\section{Fairness Violation}
+
+Fairness is an important consideration when evaluating machine learning models, particularly when model performance may differ between demographic or otherwise defined groups. In this work, fairness is incorporated directly into the model evaluation and training process through a fairness violation metric. The metric measures the difference between the performance of an individual group and the overall model performance. This fairness violation can subsequently be combined with other loss terms, such as the normal model loss and \textit{NormLoss}, to guide the training process.
+
+Let $s_{\mathrm{overall}}$ denote the performance score of the model over the complete evaluation set, and let $s_g$ denote the corresponding score for group $g$. A fairness violation is then defined as the difference between the performance of a group and the overall performance. Two definitions of this difference are considered in this work.
+
+\subsection{Relative Fairness Violation}
+
+The first definition is the relative fairness violation, which is defined as
+
+\begin{equation}
+FV_{\mathrm{rel}}(g)
+=
+\left|
+\frac{s_g}{s_{\mathrm{overall}}} - 1
+\right|.
+\label{eq}
+\end{equation}
+
+This formulation measures the relative deviation of the group score from the overall score. A value of zero indicates that the group achieves exactly the same score as the overall population, while increasingly larger values indicate a greater disparity.
+
+The normalization by $s_{\mathrm{overall}}$ makes the metric scale-independent with respect to the magnitude of the underlying performance score. For example, a fixed difference between two scores represents a larger relative difference when the overall score is small than when it is large. Consequently, the relative formulation captures the disparity between the group and overall performance in proportional rather than absolute terms.
+
+\subsection{Absolute Fairness Violation}
+
+An alternative definition considered in this work removes the normalization by the overall score. The absolute fairness violation is defined as
+
+\begin{equation}
+FV_{\mathrm{abs}}(g)
+=
+\left|
+s_g - s_{\mathrm{overall}}
+\right|.
+\label{eq}
+\end{equation}
+
+This formulation directly measures the absolute difference between the group score and the overall score. As with the relative definition, a value of zero represents equal performance between the group and the overall population.
+
+The two definitions are closely related. In particular, Equation~\ref{eq} can be rewritten as
+
+\begin{equation}
+FV_{\mathrm{rel}}(g)
+=
+\frac{
+\left|s_g - s_{\mathrm{overall}}\right|
+}{
+s_{\mathrm{overall}}
+}
+=
+\frac{
+FV_{\mathrm{abs}}(g)
+}{
+s_{\mathrm{overall}}
+}.
+\label{eq}
+\end{equation}
+
+Thus, the primary difference between the two measures is the division by $s_{\mathrm{overall}}$. When $s_{\mathrm{overall}}$ is fixed, this division corresponds only to a scaling of the fairness violation. Consequently, the two definitions provide similar information about the relative ordering of results: a result with a smaller absolute fairness violation will also have a smaller relative fairness violation when evaluated at the same overall score. The numerical values of the two metrics are therefore different in scale, while their interpretation as a measure of disparity remains closely related.
+
+This relationship is important when comparing model configurations. The fairness violation values obtained from the two definitions should not be interpreted as being directly comparable in magnitude, since the relative definition additionally normalizes the difference by the overall score. However, under comparable overall scores, the two measures can be expected to produce similar rankings of model configurations, with the relative formulation effectively providing a normalized version of the absolute difference.
+
+\section{Fairness Violation During Training}
+
+In addition to being used as an evaluation metric, the fairness violation is incorporated into the training loss. During training, the loss is not calculated over the entire training dataset at once. Instead, training is performed using partial batches of the data. Consequently, both the group score $s_g$ and the overall score $s_{\mathrm{overall}}$ are calculated from subsets of the available training data during each training step.
+
+This distinction is particularly relevant for the relative fairness violation. Since the overall score occurs in the denominator,
+
+\begin{equation}
+FV_{\mathrm{rel}}(g)
+=
+\frac{
+\left|s_g-s_{\mathrm{overall}}\right|
+}{
+s_{\mathrm{overall}}
+},
+\end{equation}
+
+changes in $s_{\mathrm{overall}}$ directly affect the magnitude of the fairness loss. The overall score can vary between batches due to differences in the samples contained within each batch. This variation introduces an additional source of instability into the fairness component of the training loss.
+
+In contrast, the absolute formulation,
+
+\begin{equation}
+FV_{\mathrm{abs}}(g)
+=
+\left|s_g-s_{\mathrm{overall}}\right|,
+\end{equation}
+
+does not contain a denominator that can amplify these batch-level changes. The fairness loss is therefore less sensitive to fluctuations in the overall score. This is expected to result in a more stable fairness loss during training.
+
+The effect of this difference was investigated experimentally by training models using both definitions. Although the two definitions produce very similar average fairness losses, the absolute formulation resulted in a small improvement in both the fairness score and the normal model performance. The improvement is relatively small, suggesting that the two definitions are broadly equivalent as measures of fairness, while the difference in their behaviour during optimization is primarily related to the stability of the loss.
+
+\section{Experimental Comparison}
+
+To compare the two fairness violation definitions, a set of 75 samples was evaluated for each formulation. For each sample, the resulting fairness violation was compared with the performance of the trained model. Figure~\ref{fig} shows the relationship between fairness violation and model performance for the two definitions.
+
+\begin{figure}[htbp]
+\centering
+% Replace with the path to the actual figure
+\includegraphics[width=0.9\textwidth]{figures/fairness_definition_comparison}
+\caption{Comparison of the relative and absolute fairness violation definitions for 75 samples. The fairness violation is shown on the x-axis and model performance on the y-axis.}
+\label{fig}
+\end{figure}
+
+The results show that the absolute fairness violation provides a small improvement compared with the relative formulation. This improvement can be observed in both the fairness measure and the normal model performance. However, the difference between the two formulations is relatively small, supporting the observation that the two metrics capture similar information.
+
+The similarity can be explained by the relationship given in Equation~\ref{eq}. Since the relative formulation is obtained by dividing the absolute difference by $s_{\mathrm{overall}}$, the two measures are strongly correlated. The main distinction therefore arises not from what constitutes a fairness violation, but from how the violation is scaled during optimization.
+
+\section{Fairness Loss During Training}
+
+To investigate whether the difference in model performance could be attributed to the magnitude of the fairness loss, the fairness loss was monitored throughout training for both definitions. Figure~\ref{fig} shows the fairness loss per epoch.
+
+\begin{figure}[htbp]
+\centering
+% Replace with the path to the actual figure
+\includegraphics[width=0.9\textwidth]{figures/fairness_loss_epoch}
+\caption{Fairness loss per epoch for the relative and absolute fairness violation definitions.}
+\label{fig}
+\end{figure}
+
+The average fairness loss per epoch is essentially the same for both definitions. This indicates that the improvement observed with the absolute formulation cannot primarily be explained by a lower average fairness loss. Instead, the difference appears to be related to the behaviour of the loss within each epoch.
+
+In particular, the batch-level fluctuations of the fairness loss were analysed by examining its variance. The resulting comparison is shown in Figure~\ref{fig}.
+
+\begin{figure}[htbp]
+\centering
+% Replace with the path to the actual figure
+\includegraphics[width=0.9\textwidth]{figures/fairness_loss_variance}
+\caption{Variance of the fairness loss for the relative and absolute fairness violation definitions.}
+\label{fig}
+\end{figure}
+
+The absolute fairness violation exhibits a lower variance in the fairness loss compared with the relative definition. This provides an explanation for the observed difference in model performance. Although both formulations produce approximately the same average fairness loss, the relative formulation introduces additional variation through the normalization by the batch-dependent value $s_{\mathrm{overall}}$.
+
+The lower variance of the absolute formulation results in a more stable fairness component during optimization. Since the fairness loss is combined with the other components of the training objective, reducing unnecessary fluctuations can allow the optimization process to focus more consistently on the intended objective. This is consistent with the observed, although relatively small, improvement in both fairness and normal model performance.
+
+\section{Discussion}
+
+The experimental results indicate that both fairness violation definitions are suitable for measuring the disparity between group and overall model performance. The two definitions are mathematically closely related, with the relative formulation corresponding to the absolute difference normalized by the overall score. As a consequence, their results are generally similar and their rankings are expected to be similar when the overall score is comparable.
+
+The main difference becomes apparent when the fairness violation is used as a component of the training loss. Because training is performed using partial batches, the overall score varies between training steps. In the relative formulation, these variations affect both the numerator and the denominator of the fairness violation. In particular, fluctuations in the denominator can introduce additional variability into the loss. The absolute formulation avoids this normalization and consequently produces a lower-variance fairness loss.
+
+The experiments support this interpretation. The average fairness loss per epoch is approximately the same for both formulations, while the variance of the fairness loss is lower when using the absolute difference. At the same time, the models trained using the absolute definition show a small improvement in both fairness and normal model performance.
+
+Therefore, while the relative definition provides a useful normalized measure of fairness violation, the absolute definition is preferable for the training objective considered in this work. It retains the same basic interpretation of the fairness violation while avoiding the additional variability introduced by the batch-dependent normalization term. The results suggest that this improved stability can have a small positive effect on the resulting model without substantially changing the fairness behaviour being measured.

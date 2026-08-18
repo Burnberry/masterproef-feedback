@@ -1,0 +1,2 @@
+- statistic
+- FAIRRET strength

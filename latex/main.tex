@@ -1,0 +1,33 @@
+\documentclass{ugent-thesis}
+
+\makeatletter
+\providecommand*{\input@path}{}
+\g@addto@macro\input@path{{../../}}
+\PassOptionsToPackage{nolist}{acronym}
+\makeatother
+
+\input{header.tex}
+% \bibliographyfile{\theabsdir../../references}
+\bibliographyfile{references}
+
+% Fix to display bibliography for individual chapter
+% using relative path does not work using LaTeX Workshop
+% on Visual Studio Code
+\usepackage{currfile-abspath}
+\getabspath{main.tex}
+
+\setlength{\parindent}{0pt}
+\usepackage{parskip}
+\begin{document}
+    \makefront
+    \makeatletter
+    % \begin{acronym}[\@acronymsize]%
+    % \ input{\@acronyms}%
+    %   \end{acronym}
+    \makeatother
+
+    \body
+    \input{chapters/main.tex}
+
+    \makebibliography
+\end{document}

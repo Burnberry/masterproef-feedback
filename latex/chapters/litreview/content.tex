@@ -1,0 +1,426 @@
+\chapter{Literary review}
+Algorithmic decision-making systems are increasingly used in applications that can have significant consequences for individuals, such as hiring, lending, education, and access to public services. As these systems become more widespread, concerns about whether their decisions are fair across different demographic groups have received substantial attention. However, fairness in machine learning is not a single well-defined property. Instead, the literature proposes multiple fairness definitions, each capturing a different notion of what it means for a predictive model to treat groups fairly.
+
+This chapter provides an overview of the concepts and methods relevant to the study of fairness in machine learning and establishes the theoretical background for the experiments conducted in this thesis. First, the different ways fairness can be defined and measured are introduced.
+
+Next, fairness-enhancing methods are considered. These methods can broadly be categorized into pre-processing, in-processing, and post-processing approaches, depending on the stage of the machine learning pipeline at which fairness is addressed. Particular attention is given to in-processing methods, as the experiments in this thesis rely on the FAIRRET framework to incorporate fairness requirements during model training.
+
+The chapter then introduces FAIRRET and describes its formulation and training procedure. This provides the necessary context for understanding how multiple fairness definitions can be incorporated into the training process and how the framework is used in the experimental evaluation.
+
+Finally, the chapter discusses the compatibility of different fairness definitions and the concept of maximal combinations of fairness criteria. Although individual fairness definitions may be desirable, theoretical results show that not all definitions can necessarily be satisfied simultaneously. The concept of maximal combinations provides a way of characterizing sets of fairness definitions that can be satisfied together while no additional definition can be added without violating compatibility. These theoretical results form the basis for the experimental investigation in this thesis, where the predicted combinations are evaluated in practice using the FAIRRET framework.
+
+Together, these topics establish the theoretical foundation needed to investigate the relationship between fairness definitions and model training behaviour. The literature review therefore serves not only to introduce the relevant concepts, but also to position the experimental work within existing research on fairness constraints and the compatibility of multiple fairness objectives.
+
+\section{Sources of bias}
+\todo{TODO: small section so it's at least mentioned}
+
+\section{Fairness definitions}
+Fairness in machine learning can be defined in different ways depending on what is considered a fair outcome. As there is no universally accepted definition of fairness, the literature has proposed a variety of fairness criteria that capture different aspects of equitable decision-making. A common distinction is made between individual fairness and group fairness \cite{dwork}. While individual fairness focuses on treating similar individuals similarly, group fairness considers whether the outcomes or predictions of a model are comparable across predefined demographic groups.
+
+\subsection{Fairness trhough awareness}
+Individual fairness considers fairness at the level of individual instances. The underlying principle is that individuals who are similar with respect to the characteristics relevant to a particular decision should be treated similarly by the predictive model. In this sense, individual fairness aims to prevent a model from making substantially different decisions for individuals who are considered similar.
+
+Individual fairness was introduced by Dwork et al. (2012) \cite{dwork}, who proposed that similar individuals should receive similar outcomes. This formulation requires defining a notion of similarity between individuals, typically through a task-specific distance metric. A model can then be evaluated according to whether the difference in its outputs is consistent with the specified similarity between individuals.
+
+\subsection{Group fairness}
+\label{sec:groupfair}
+In contrast to individual fairness, group fairness evaluates whether a model behaves fairly across predefined groups of individuals. These groups are typically defined according to a sensitive or protected attribute, such as gender, race, or age. Rather than requiring similar treatment for every pair of individuals, group fairness imposes constraints on aggregate outcomes between groups.
+
+For example, a group fairness criterion may require that the probability of receiving a positive prediction is the same for different demographic groups. Other criteria may instead require groups to have equal true-positive rates or equal error rates.
+
+Group fairness is particularly relevant when the objective is to identify and evaluate disparities between demographic groups. It also allows fairness requirements to be expressed mathematically as constraints on statistical quantities, making these definitions suitable for incorporation into machine learning training procedures.
+
+The distinction between individual and group fairness is important for positioning the remainder of this work. While both approaches address fairness in algorithmic decision-making, the focus of this thesis is on group fairness. The remainder of this section examines specific group fairness definitions and the relationships between them, which provide the basis for the fairness constraints and combinations investigated later in the thesis.
+
+Below are the the fairness definition used in this thesis. A more extensive overview of fairness definitions was made by Verna and Rubin (2018) \cite{fair_definitions}. Most fairness definitions have multiple names, the terms used here are consistent with Defrance (2025) \cite{max_combinations}.
+
+The following symbols are used for the mathematical definitions:
+\\- Y: The correct classification, a result of 1 is considered a positive outcome and 0 a negative outcome.
+\\- $\hat{Y}$: The predicted classification
+\\- A: The group base on the protected attributes
+\\- TP: True positives, correctly predicted positive outcomes.
+\\- FP: False positives, incorrectly predicted positive outcomes.
+\\- TN: False positives, correctly predicted negative outcomes.
+\\- FN: False positives, incorrectly predicted negative outcomes.
+\\
+
+\subsubsection{Demographic Parity (DP)}
+A model satisfies demographic parity when both the protected and unprotected groups have the same probability to receive a positive outcome.
+\todo{TODO: extra details on definitions}
+
+\[
+Probabilities:\qquad
+P(\hat{Y}=y\mid A=0)=P(\hat{Y}=y\mid A=1)
+\]
+
+\[
+Statistic:\qquad
+\frac{FP+TP}{FP+TP+FN+TN}
+\]
+
+\subsubsection{Equal Opportunity (EO)}
+A model satisfies equal opportunity when people from both the protected and unprotected groups, who belong to the positive classification, have the same probabilities to receive a positive and negative outcome.
+
+\[
+Probabilities:\qquad
+P(\hat{Y}=1\mid A=0, Y=1)=P(\hat{Y}=1\mid A=1, Y=1)
+\]
+
+\[
+Statistic:\qquad
+\frac{TP}{TP+FN}
+\]
+
+\subsubsection{Predictive Equality (PE)}
+A model satisfies predictive equality when people from both the protected and unprotected groups, who belong to the negative classification, have the same probabilities to receive a positive outcome.
+
+\[
+Probabilities:\qquad
+P(\hat{Y}=1\mid A=0, Y=0)=P(\hat{Y}=1\mid A=1, Y=0)
+\]
+
+\[
+Statistic:\qquad
+\frac{FP}{FP+TN}
+\]
+
+\subsubsection{Equalised Odds}
+A model satisfies equalised odds when it satisfies both equal opportunity and predictive equality.
+
+\[
+Probabilities:\qquad
+P(\hat{Y}=1\mid A=0, Y=y)=P(\hat{Y}=1\mid A=1, Y=y) \qquad y \in \{0,1\}
+\]
+
+\[
+Statistic:\qquad
+-
+\]
+
+\subsubsection{Predictive Parity (PP)}
+A model satisfies predictive parity when people from both the protected and unprotected groups, who receive a positive classification, have the same probabilities to actually belong to the positive classification.
+
+\[
+Probabilities:\qquad
+P(Y=1\mid A=0, \hat{Y}=1)=P(Y=1\mid A=1, \hat{Y}=1)
+\]
+
+\[
+Statistic:\qquad
+\frac{TP}{TP+FP}
+\]
+
+\subsubsection{False Omission Rate Parity (FOR)}
+A model satisfies false omission rate parity when people from both the protected and unprotected groups, who receive a negative classification, have the same probabilities to actually belong to the negative classification.
+
+
+\[
+Probabilities:\qquad
+P(Y=1\mid A=0, \hat{Y}=0)=P(Y=1\mid A=1, \hat{Y}=0)
+\]
+
+\[
+Statistic:\qquad
+\frac{FN}{FN+TN}
+\]
+
+\subsubsection{Overall Accuracy Equality (ACC)}
+A model satisfies overall accuracy equality when people from both the protected and unprotected groups have the same probabilities to receive a correct classification.
+
+\[
+Probabilities:\qquad
+P(Y=\hat{Y}\mid A=0)=P(Y=\hat{Y}\mid A=1)
+\]
+
+\[
+Statistic:\qquad
+\frac{FP+TP}{FP+TP+FN+TN}
+\]
+
+
+\subsubsection{Treatment Equality (TE)}
+A model satisfies treatment equality when for both the protected and unprotected groups, misclassifications have the same rates of both positive and negative outcomes.
+
+\[
+Probabilities:\qquad
+-
+\]
+
+\[
+Statistic:\qquad
+\frac{FN}{FP}
+\]
+
+\todo{TODO: Talk about base rates and how they relate to group fairness}
+
+\section{Datasets}
+Empirical evaluation of fairness-aware machine learning methods requires datasets that contain both a prediction target and information about relevant demographic groups. The choice of dataset can have a substantial influence on the observed fairness and predictive performance of a model.
+
+The base rate is a very important property to consider of datasets and so, more generally of demographics. The base rate is, the rate at which a specific demographic gets positive outcomes. This can vary between demographics, due to biased data or a societal reality, which can have large consequences on the fairness constraint being used. For example when it's expected positive outcomes are predicted at the same rate across groups, but the base rate is different, then the model will need to misclassify a certain amount of people. In other words, satisfying the constraint would in this case lead to worse performance, there's a fairness-performance trade-off. However, this is not the case for all fairness constraints. If the required constraint was for all positive outcomes to be predicted correctly at the same rates, then the performance would not necessarily be affected by differing base rates. A perfect predictor would satisfy this fairness constraint. This means the base rate plays an important role in the decision of which fairness constraint should be used for a given task.
+
+\todo{TODO:
+- folktables
+- fairgrounds
+- disappearing datasets
+- Mention something a about bad datasets like compas and adult?}
+
+To evaluate the behaviour of fairness constraints across different settings, this thesis considers three datasets: LawSchool, ACSIncome, and ACSEmployment. These datasets represent different prediction tasks and demographic properties, providing an opportunity to investigate whether the observed training behaviour is consistent across different data real world distributions.
+
+The following subsections describe each dataset individually, including the prediction task, relevant features, target variable, and protected attributes used in the experiments.
+
+
+\subsection{ACSIncome}
+ACSIncome is part of folktables \cite{folktables} derived from the American Community Survey (ACS). It is used for predicting whether an individual has an income above \$50.000 based on demographic and socioeconomic characteristics. The dataset represents a large-scale real-world population and contains substantial variation in both the characteristics of individuals and the distribution of outcomes between demographic groups. This makes it suitable for investigating the behaviour of group fairness constraints under different group and outcome distributions.
+
+Classification task: Is income above \$50.000?
+
+Sensitive attributes: Race, Gender, Age, Marital status
+
+Features or feature categories: Education, Employment, Origin
+
+Number of records: 245,673 (1,664,500 in full dataset)
+
+Base positive rates:
+\begin{table}[htbp]{}
+    \begin{tabular}{l|cc}
+        \hline
+        Feature &  & \\
+        \hline
+        race & white: 41.8\% & African American: 30.4\%\\
+        & American Indian: 27.1\% & Asian: 48.0\%\\
+        & mixed: 34.5\% & other: 19.5\%\\
+        gender & male: 45.6\% & female: 32.8\%\\
+         \hline
+    \end{tabular}
+\end{table}
+
+Notes: racial groups with fewer than 1000 samples were omitted from the base rate table.
+
+
+\subsection{ACSEmployment}
+The ACSEmployment dataset is also part of folktables \cite{folktables} and derived from the American Community Survey (ACS) and focuses on predicting an individual's employment status from demographic and socioeconomic information. Similar to ACSIncome, it provides a real-world classification setting in which differences in outcome distributions between demographic groups can be examined. In this thesis, the dataset is used as an additional setting for evaluating whether the theoretical relationships between fairness definitions are reflected in practical model training.
+
+Classification task: Is currently employed?
+
+Sensitive attributes: Race, Gender, Age, Marital status
+
+Features or feature categories: Education, Disabilities, Employment of parents, Ancestry, Citizenship and migration status
+
+Number of records: 478,236 (3,236,107 in full dataset)
+
+Base positive rates:
+\begin{table}[htbp]{}
+    \begin{tabular}{l|cc}
+        \hline
+        Feature &  & \\
+        \hline
+        race & white: 45.8\% & African American: 37.9\%\\
+        & American Indian: 39.5\% & Asian: 45.5\%\\
+        & mixed: 36.3\% & other: 46.0\%\\
+        gender & male: 48.7\% & female: 42.1\%\\
+         \hline
+    \end{tabular}
+\end{table}
+
+Notes: racial groups with fewer than 1000 samples were omitted from the base rate table.
+
+\subsection{LawSchool}
+The LawSchool dataset is a commonly used dataset in research on algorithmic fairness and concerns the prediction of outcomes related to legal education. The dataset provides information about individuals and their academic and demographic characteristics, allowing models to be evaluated on their ability to predict the relevant outcome across different demographic groups. In this thesis, the dataset is used to investigate the behaviour of fairness constraints in a legal education context and to evaluate the compatibility of different group fairness definitions.
+
+The original purpose for the creation of the LawSchool dataset was to investigate claims that people of colour had lower pass rates in the context of legal education \cite{lawschool}. The dataset was developed to examine whether differences in academic outcomes could be observed between racial groups and to investigate the factors that may contribute to these differences. Consequently, the dataset provides information that can be used to study the relationship between demographic characteristics and educational outcomes, making it relevant for evaluating fairness in machine learning.
+
+\subsubsection{Properties}
+Classification task: Will the bar exam be passed?
+
+Sensitive attributes: Race, Gender
+
+Features or feature categories: LSAT score, GPA, law-school grades, family income, tier law school
+
+Number of records: 18692
+
+Base positive rates:
+\begin{table}[htbp]{}
+    \begin{tabular}{l|cc}
+        \hline
+        Feature & Rate1 & Rate2\\
+        \hline
+        race & white: 92.1\% & non-white: 61.8\%\\
+        gender & male: 91.1\% & female: 89.0\%\\
+         \hline
+    \end{tabular}
+\end{table}
+
+Notes: the source of the dataset used came from Le Quy (2022) \cite{lequy} which contains some pre-processing and transformations.
+
+
+
+
+
+\section{Fairness methods}
+Once fairness has been defined, a natural next step is to consider how fairness can be incorporated into machine learning systems. Fairness methods aim to reduce or prevent disparities between demographic groups while maintaining the predictive performance of the model. Different approaches intervene at different stages of the machine learning pipeline and therefore differ in how fairness is achieved.
+
+The survey conducted by Caton \& Haas (2024) \cite{fairmethod_caton} lists different fairness methods. Another survey on this subject was made by Hort et al. (2024) \cite{surveyHort}. these methods are commonly divided into three categories: pre-processing, in-processing, and post-processing methods. Pre-processing methods modify the training data before it is provided to the model, in-processing methods incorporate fairness considerations directly into the model training procedure, and post-processing methods modify the predictions of an already trained model. The experiments in this thesis make use of in-processing techniques.
+
+\subsection{Pre-processing}
+Pre-processing methods address fairness by modifying the training data before it is provided to a machine learning model. Instead of changing the learning algorithm or the predictions produced by a trained model, these methods attempt to reduce unfairness by changing the representation, composition, or influence of samples in the training data. As a result, the subsequent model can be trained using a conventional learning algorithm without explicitly incorporating fairness into its objective. Some examples are explained below.
+
+One approach is relabelling, sometimes referred to as massaging. In these methods, the labels of selected samples are changed before training in order to reduce differences between groups. Typically, observations close to the decision boundary are selected for relabelling, with the aim of changing the outcomes of some individuals from disadvantaged groups.
+
+Pre-processing can also modify the features or their representation. For example, features can be transformed to reduce differences in their distributions between demographic groups or to remove information associated with sensitive attributes. Such approaches address the fact that simply removing a sensitive attribute does not necessarily prevent discrimination, as other features may contain information correlated with it and can therefore act as proxies for the sensitive attribute.
+
+Another approach is sampling, this modifies the way samples are selected as training data, such as oversampling from under-represented groups or undersampling from overrepresented groups. These methods can help produce a more balanced training distribution, although balancing the number of observations does not necessarily guarantee that a particular fairness definition will be satisfied. Particularly when there's biases present in the dataset which aren't caused by over representation. Kamiran \& Calders (2012) \cite{prefsample} use preferential sampling to try and counteract this. Samples are to remove and duplicate are chosen close to the decision border of a classifier. As these are most likely to be discriminated against from biases. However, this does require a model to be trained and is not strictly pre-processing.
+
+One approach is reweighing, where different training instances are assigned different weights according to their sensitive group and outcome. Instances belonging to under-represented group-outcome combinations can, for example, be given a higher weight during training, while instances from overrepresented combinations receive a lower weight. This changes the influence that different observations have on the learned model without modifying the observations themselves. Reweighing therefore provides a relatively direct way of addressing differences in the distribution of outcomes between groups. This can be done both as pre-processing purely by using the training data, or as in-processing based on how a model classifies samples.
+
+\subsection{In-processing}
+In-processing methods incorporate fairness considerations directly into the training procedure of a machine learning model. Rather than modifying the training data or the predictions after training, these methods modify the objective or optimization process used to learn the model. This allows fairness requirements to be considered simultaneously with the predictive objective during training. Caton and Haas \cite{catonHaas} distinguish several approaches to in-processing fairness, including methods based on loss functions, constraints, and adversarial learning.
+
+A common approach is to incorporate fairness directly into the loss function or optimization problem. One way of doing this is through a fairness regularization term, resulting in an objective of the form
+
+\[
+\mathcal{L} =
+\mathcal{L}_{\mathrm{prediction}} +
+\lambda \mathcal{L}_{\mathrm{fairness}},
+\]
+
+where $\mathcal{L}_{\mathrm{prediction}}$ represents the predictive loss and $\mathcal{L}_{\mathrm{fairness}}$ measures the extent to which a desired fairness criterion is violated. The parameter $\lambda$ controls the relative importance of fairness compared to predictive performance, which can be tuned. In this formulation, fairness is treated as a soft objective: increasing the importance of the fairness term encourages the model towards a fairer solution, but does not necessarily require the fairness criterion to be satisfied exactly. An example of this was developed in Buyl et al. (2024) \cite{fairret} as a fairness regularization term (FAIRRET).
+
+Alternatively, fairness can be formulated as an explicit constraint on the optimization problem. In this case, the model is trained to minimize its predictive loss while satisfying one or more fairness requirements. The distinction between regularization and constraints is therefore primarily whether fairness is treated as a soft penalty in the objective or as a requirement that the solution must satisfy. Both approaches, however, incorporate fairness into the model's training process and can therefore directly influence the learned model.
+
+Another approach is adversarial learning, where fairness is encouraged by introducing an additional adversarial component into the training process. Typically, a predictor is trained to perform the primary prediction task while an adversary attempts to infer the sensitive attribute from the model's predictions or learned representations. The predictor is consequently encouraged to retain information useful for the prediction task while reducing information that allows the sensitive attribute to be inferred. adversarial learning can also be used on the training data as a pre-processing transformation.
+
+In-processing methods provide greater control over the trade-off between predictive performance and fairness than approaches that modify the data independently of the learning algorithm. However, they generally require modifications to the training procedure and may depend on the model architecture or optimization algorithm being used. Furthermore, when multiple fairness definitions are incorporated simultaneously, the objectives or constraints may interact with one another. This is particularly relevant to this thesis, which investigates the behaviour of models when multiple group fairness definitions are imposed during training.
+
+\subsection{Post-processing}
+Post-processing methods address fairness after a machine learning model has been trained. Rather than modifying the training data or the learning procedure, these approaches modify the predictions or output scores of an existing model to reduce disparities between demographic groups. This allows fairness requirements to be applied without retraining or modifying the underlying predictive model.
+
+A common post-processing approach is thresholding. A classification model often produces a score or probability representing the likelihood of the positive class, which is then converted into a binary prediction using a threshold. Instead of applying the same threshold to all groups, group-specific thresholds are used to achieve a desired fairness criterion. Thresholding works with similar reasoning as preferential sampling, discussed in the pre-processing section, where it's assumed bias takes place on classifications near a threshold. Changing the threshold affects the distribution of positive predictions as well as measures such as the true-positive and false-positive rates. For example, different thresholds can be selected for different groups to satisfy equal opportunity or equalized odds. An influential example is the post-processing method proposed by Hardt et al. \cite{hardt2016}, which adjusts the predictions of an existing classifier to satisfy equalized odds while maintaining as much predictive performance as possible.
+
+Another type of post-processing is calibration. It works similarly to thresholding, but rather than changing the threshold, the model scores or probabilities itself are transformed.
+
+Post-processing methods have the advantage that they can be applied to an already trained model and therefore do not require changes to the model's architecture or training procedure. However, fairness is addressed only after the model has learned its predictive function. Furthermore, modifying predictions to satisfy one fairness criterion may negatively affect predictive performance or conflict with another fairness criterion.
+
+\subsection{Maximal combinations of fairness definitions}
+While the impossibility results demonstrate that certain combinations of fairness definitions cannot be satisfied simultaneously, they do not characterize which combinations are possible. Defrance and De Bie (2025) \cite{max_combinations} address this complementary question by systematically identifying the maximal combinations of commonly used group fairness definitions that can be satisfied simultaneously. Their analysis considers binary classification and focuses on seven fairness definitions, mentioned in Section \ref{sec:groupfair}: demographic parity (DP), equal opportunity (EO), predictive equality (PE), predictive parity (PP), false omission rate parity (FOR), overall accuracy equality (ACC) and treatment equality (TE). Note that equalised opportunity was not forgotten, because it is a combination of equal opportunity and predictive equality, it is not a basic fairness definition. Instead, it is part of the possible fairness combinations constructed from those seven fairness definitions.
+
+A combination is considered maximal when the fairness definitions in the combination can be satisfied simultaneously, but adding any further definition would make the combination impossible. The authors find a total of twelve maximal combinations, consisting of seven combinations of two fairness definitions and five combinations of three definitions. This provides a more complete picture of the relationships between fairness definitions than the impossibility theorem alone: rather than only identifying incompatible combinations, it also shows which combinations can coexist.
+
+\todo{Mention eq. odd + DP independent from truth}
+
+The relevant combinations can be found in the Table \ref{table:combinations} below.
+
+\begin{table}[htbp]{}
+    \centering
+    \begin{tabular}{|l|r|}
+        \hline
+        Maximal & Non-maximal \\
+        \hline
+        (DP, EO, PE) & (DP, EO)\\
+        (EO, PE, ACC) & (DP, PE)\\
+        (EO, PP, TE) & (EO, PE)\\
+        (PE, FOR, TE) & (EO, ACC)\\
+        (PP, FOR, ACC) & (EO, TE)\\
+        (DP, PP) & (PE, ACC)\\
+        (DP, FOR) & (PE, TE)\\
+        (DP, ACC) & (PP, FOR)\\
+        (DP, TE) & (PP, ACC)\\
+        (EO, FOR) & (FOR, ACC)\\
+        (PE, PP) & (PP, TE)\\
+        (ACC, TE) & (EO, PP)\\
+         & (PE, FOR)\\
+         & (FOR, TE)\\
+         \hline
+    \end{tabular}
+    \caption{All possible sets of fairness definitions consisting of at least two definitions}
+\label{table:combinations}
+\end{table}
+
+The work of Defrance and De Bie (2025) \cite{DefranceDeBie2025} also shows that any pairwise combination of the fairness definitions within either of the two triplets equal opportunity, predictive parity, and treatment equality; or predictive equality, false omission rate parity, and treatment equality results in the same constraint as the corresponding triplet. Consequently, satisfying any pair of definitions within a triplet is sufficient to satisfy all three definitions.
+
+The maximal combinations identified by Defrance and De Bie (2025) \cite{DefranceDeBie2025} are central to this thesis as one of the experiments will investigate whether the maximal combinations identified as theoretically feasible can also be achieved in practice when applied to real datasets and trained models. This allows the thesis to examine whether the theoretical relationships between combining fairness definitions translate into practical settings, where factors such as the data distribution, model choice, and predictive performance may affect the extent to which multiple fairness criteria can be satisfied simultaneously. In this way, the experiments do not merely reproduce the theoretical results, but test their practical applicability and investigate the gap, if any, between what is theoretically possible and what can actually be achieved by a machine learning model.
+
+\todo{TODO: mention relation with base rate and error}
+
+A complementary perspective is provided by The Possibility of Fairness: Revisiting the Impossibility Theorem in Practice \cite{bell}, which argues that the theoretical impossibility results are often less restrictive in real-world applications. Rather than requiring fairness definitions to be satisfied exactly, the authors consider weakened constraints that allow small deviations from perfect parity. Their findings show that some combinations that are theoretically impossible can be approximated to a high degree in practice, while maintaining useful predictive performance. This suggests that the gap between theoretical impossibility and practical feasibility is smaller than the original impossibility theorems imply. Consequently, if some theoretically incompatible combinations can be partially satisfied under relaxed constraints, the maximal combinations identified by Defrance and De Bie (2025) are expected to be useful in practice as well, making them strong candidates for empirical validation in the experiments presented in this thesis.
+
+Overall, the literature on combining fairness definitions demonstrates that there is no universally compatible set of fairness criteria. The impossibility results show that certain combinations cannot be satisfied simultaneously under specific theoretical conditions, while the work of Defrance and De Bie (2025) \cite{max_combinations} provides a systematic characterization of combinations that are theoretically feasible. At the same time, research on the practical implications of the impossibility theorem suggests that even theoretically incompatible combinations can often be approximately satisfied when the fairness constraints are weakened. This indicates that the distinction between theoretical impossibility and practical feasibility is not necessarily absolute. Taken together, these findings provide a theoretical foundation for the experiments in this thesis. In particular, the maximal combinations identified by Defrance and De Bie (2025) are expected to be achievable in practice.
+
+\section{FAIRRET}
+The fairness methods discussed in the previous section provide different ways of incorporating fairness into the machine learning pipeline. The experiments in this thesis make use of  fairness regularization terms (FAIRRET), an in-processing framework that incorporates fairness requirements directly into the training objective. FAIRRET was introduced by Buyl et al. \cite{fairret} as a general framework for constructing differentiable fairness regularization terms. Its formulation allows different fairness definitions to be incorporated into the training process and, importantly for this thesis, allows multiple fairness requirements to be applied simultaneously.
+
+The central idea behind FAIRRET is to represent a fairness definition as a statistical requirement on the predictions of a model. Many group fairness definitions can be expressed as requiring a particular statistic to be equal across demographic groups. FAIRRET provides a general mechanism for turning these statistical fairness requirements into differentiable regularization terms that can be incorporated into model training.
+
+\subsection{Linear fractional statistics}
+The framework is based on the use of linear-fractional statistics. In general, a linear-fractional statistic can be represented as a ratio of two affine functions of relevant probabilities or statistics:
+
+\[
+\gamma(k; f)
+=
+\frac{
+    \mathbb{E}\left[S_k(\alpha_0(X,Y) + f(X)\beta_0(X,Y)\right)]
+    }{
+    \mathbb{E}\left[S_k(\alpha_1(X,Y) + f(X)\beta_1(X,Y)\right)]
+    }
+\]
+
+With $\gamma$ the statistic, k the protected group, f the classifier, X the features, Y the label which is 1 when positive, $S_k$ the sensitive attribute variable which is 1 for an input of a protected group, and also $alpha_0$, $alpha_1$, $beta_0$ and $beta_1$ which can be arbitrary functions which depend on the features and label.
+
+As an example, demographic parity (DP) can be constructed using $beta_0 = 1$, $beta_1 = 0$, $alpha_1 = 0$ and $alpha_1 = 1$, which gives:
+\[
+\frac{
+    \mathbb{E}\left[S_k(f(X)\right)]
+    }{
+    \mathbb{E}\left[S_k\right]
+    }
+\]
+
+It is easy to see this corresponds with the probability of positive classification of group k divided by the probability of a being part of group k. In other words the positive rate of group k, which is the statistic used for demographic parity, as defined in the section on fairness definitions. Buyl et al. \cite{fairret} also provide the required $alpha_0$, $alpha_1$, $beta_0$ and $beta_1$ for equal opportunity (EO), predictive equality (PE), predictive parity (PP), false omission rate parity (FOR), overall accuracy equality (ACC) and treatment equality (TE).
+
+
+\subsection{Violation metric}
+A violation metric can then be defined to measure how unfair a group's statistic is compared to the other groups. The violation defined by Buyl et al. \cite{fairret} is written below.
+
+\begin{equation}
+    v_{\mathrm{k}}(f)
+    =
+    \left|
+    \frac{{\gamma}(k; f)}{\overline{{\gamma}}(f)} - 1
+    \right|
+    \label{eq}
+\end{equation}
+
+With $\overline{{\gamma}}(f)$ the overall statistic, the statistic of all groups combined.
+
+\subsection{Fairness regularisation}
+The fairness regularization term can be understood as a measure of the deviation from the desired fairness condition, the violation. When the fairness requirement is satisfied, the corresponding fairness violation is minimized. During training, the optimizer therefore attempts to find model parameters that provide a suitable balance between predictive performance and fairness.
+
+\[
+\min_h \mathcal{L}(f) + \lambda \mathcal{L}_fair(f)
+\]
+
+The parameter $\lambda$ determines the relative importance of the fairness requirement. With a small value of $\lambda$, predictive performance has a greater influence on the optimization, whereas a larger value places greater emphasis on reducing the fairness violation. This creates a trade-off between the predictive objective and the fairness objective.
+
+The use of a differentiable regularization term is particularly relevant for neural network-based models, as the fairness term can be incorporated into standard gradient-based optimization. The gradient of the combined loss can be used to update the model parameters in the same way as for the predictive loss alone. FAIRRET can therefore be integrated into existing training procedures without requiring fairness to be treated as a separate training method.
+
+\subsection{Combining Fairrets}
+An important property of FAIRRET for this thesis is its ability to incorporate multiple fairness requirements into a single training objective. Instead of using one fairness regularization term, several terms can be combined:
+
+\[
+\min_h \mathcal{L}(f) + \mathcal{\lambda}_1 \mathcal{L}_fair1(f) + \mathcal{\lambda}_2 \mathcal{L}_fair2(f) + ...
+\]
+
+Where each $\mathcal{L}_fair_i(f)$ corresponds to a different fairness definition. This provides a direct way to investigate whether several fairness definitions can be satisfied simultaneously. Each fairness requirement contributes its own term to the training objective, while the optimizer attempts to find model parameters that perform well on the prediction task and satisfy the imposed fairness requirements.
+
+In the context of this thesis, individual FAIRRET terms are used to represent the group fairness definitions considered in the theoretical analysis. Combinations of these terms can then be used during model training to investigate whether the combinations predicted to be jointly satisfiable can also be achieved in practice.
+
+
+\section{Combining fairness metrics}
+In the pursuit of fair artificial intelligence systems, it can be desirable to satisfy multiple fairness definitions simultaneously. Different fairness criteria capture different aspects of what it means for a system to treat individuals and groups fairly, and relying on a single definition may therefore provide an incomplete account of fairness. However, these definitions do not always align. When the base rates differ between groups, there are combinations of definitions which cannot be satisfied, at least not with a meaningful model or a model which required perfect predictions. Consequently, the choice of fairness definition is not merely a technical decision, but can determine which aspects of fairness a system prioritizes.
+
+\subsection{Impossibility theorem}
+In the pursuit of fair artificial intelligence systems, it can be desirable to satisfy multiple fairness definitions simultaneously. Different fairness criteria capture different aspects of what it means for a system to treat individuals and groups fairly, and relying on a single definition may therefore provide an incomplete account of fairness. However, these definitions do not always align. When the base rates differ between groups, there are combinations of definitions which cannot be satisfied, at least not with a meaningful model or a model which required perfect predictions. Consequently, the choice of fairness definition is not merely a technical decision, but can determine which aspects of fairness a system prioritizes.
+
+Research has demonstrated that combining fairness metrics is not always possible. Chouldechova (2016) \cite{chouldechova2016} shows that when groups have different base rates, it is impossible for a risk assessment system to simultaneously satisfy predictive parity and equal error rates, except for degenerative models. This is generally considered as the impossibility theorem.
+Kleinberg et al. (2016) \cite{Kleinberg2016} establish a closely related impossibility result for risk scores. They consider three properties of a risk score: calibration within groups, balance for the positive class, and balance for the negative class. Their results show that, when groups have different base rates and prediction is not perfect, these properties cannot all be satisfied simultaneously. Thus, the conflict is not necessarily a consequence of a particular algorithm or modelling choice. Rather, it can arise from the statistical structure of the underlying population.
+
+These results demonstrate that fairness cannot always be achieved by simultaneously satisfying multiple fairness criteria. In particular, when groups differ in their base rates, improving or enforcing one notion of fairness may necessarily come at the expense of another.

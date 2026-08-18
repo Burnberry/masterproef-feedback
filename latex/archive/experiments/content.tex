@@ -1,0 +1,81 @@
+\subsection{Relative and Absolute Fairness Violations}
+\label{sec}
+
+We consider two closely related definitions for quantifying the violation of a fairness constraint. Let $s_{\mathrm{group}}$ denote the value of a fairness statistic for a specific sensitive group and let $s_{\mathrm{overall}}$ denote the corresponding statistic over the full population. A fairness constraint is satisfied when
+\begin{equation}
+s_{\mathrm{group}} = s_{\mathrm{overall}}.
+\end{equation}
+
+The first definition is the relative violation,
+\begin{equation}
+v_{\mathrm{rel}}
+=
+\left|
+\frac{s_{\mathrm{group}}}{s_{\mathrm{overall}}} - 1
+\right|,
+\label{eq}
+\end{equation}
+which is equivalent to
+\begin{equation}
+v_{\mathrm{rel}}
+=
+\frac{
+\left|
+s_{\mathrm{group}} - s_{\mathrm{overall}}
+\right|
+}{
+\left|s_{\mathrm{overall}}\right|
+},
+\end{equation}
+assuming $s_{\mathrm{overall}} \neq 0$. This definition corresponds to the relative violation formulation used by the FAIRRET framework, where the difference between the group-specific and overall statistics is normalized by the overall statistic.
+
+As an alternative, we consider the absolute violation,
+\begin{equation}
+v_{\mathrm{abs}}
+=
+\left|
+s_{\mathrm{group}} - s_{\mathrm{overall}}
+\right|.
+\label{eq}
+\end{equation}
+
+The two definitions are therefore closely related:
+\begin{equation}
+v_{\mathrm{rel}}
+=
+\frac{v_{\mathrm{abs}}}{\left|s_{\mathrm{overall}}\right|}.
+\label{eq}
+\end{equation}
+In other words, the relative violation can be obtained directly from the absolute violation by dividing by the overall statistic. When $s_{\mathrm{overall}}$ remains reasonably stable, this transformation primarily rescales the violation. The relative formulation additionally expresses the violation in relation to the magnitude of the overall statistic, which can be useful when reviewing and comparing fairness performance across statistics with different scales.
+
+At first sight, this relationship suggests that the choice between the two definitions should have little effect on the final trained model. In particular, the fairness loss is multiplied by a fairness strength hyperparameter during training. Consequently, a rescaling of the violation can in principle be compensated for by selecting a different fairness strength during hyperparameter search. If $s_{\mathrm{overall}}$ were constant, the two objectives would therefore differ only by a constant scaling factor, and an appropriate adjustment of the fairness strength would result in equivalent optimization behaviour.
+
+However, $s_{\mathrm{overall}}$ is not constant during training. The model is trained using mini-batches, such that the group and overall statistics used to calculate the fairness loss are estimated separately for each batch. The normalization in Eq.~\ref{eq} therefore introduces an additional source of variation: fluctuations in $s_{\mathrm{overall}}$ directly affect the scale of the relative violation. This leads to the hypothesis that the relative formulation may produce a less stable fairness-loss signal during stochastic optimization. In contrast, the absolute formulation does not divide by a batch-dependent statistic and may therefore provide a more consistent optimization signal.
+
+\subsubsection{Experimental Comparison}
+
+To investigate this effect, we compared the relative and absolute violation definitions in one experimental setting. A total of 75 result samples were obtained for each definition, covering the tested training configurations. Figure~\ref{fig} shows the resulting trade-off between fairness violation and model performance. Lower fairness violations and higher model performance are preferred.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{relative_absolute_performance.pdf}
+\caption{Comparison between the relative and absolute fairness violation definitions. Each point represents a result sample, with fairness violation on the horizontal axis and model performance on the vertical axis.}
+\label{fig}
+\end{figure}
+
+The absolute violation definition achieved a slightly better trade-off overall, showing both marginally lower fairness violations and marginally better decision performance. Although the difference is small, the consistency of the shift in the observed trade-off suggests that the two formulations are not fully interchangeable in practice, despite their simple mathematical relationship.
+
+To further investigate the proposed explanation, we compared the fairness-loss values throughout training. The average loss trajectories of the two definitions were essentially the same, indicating that the observed performance difference is not explained by a substantially different overall magnitude of the fairness objective. However, the relative violation exhibited a larger variance in fairness loss across batches within an epoch, as shown in Figure~\ref{fig}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{relative_absolute_loss.pdf}
+\caption{Fairness loss during training for the relative and absolute violation definitions. While the overall loss trajectories are similar, the relative violation exhibits greater variation within training epochs.}
+\label{fig}
+\end{figure}
+
+These observations are consistent with the hypothesis that the batch-dependent normalization by $s_{\mathrm{overall}}$ increases the variance of the optimization signal. Because $s_{\mathrm{overall}}$ is estimated on individual mini-batches, variation in this statistic changes the effective scaling of the relative fairness loss from batch to batch. The fairness strength selected during hyperparameter search can compensate for the average scale of the loss, but it cannot remove this additional batch-level variation. The absolute violation, by avoiding this division, may therefore provide a slightly more stable optimization signal and consequently achieve a modestly better fairness--performance trade-off.
+
+This effect should nevertheless be interpreted with caution. Preliminary experiments on other datasets did not consistently reproduce the same difference between the two definitions. In these experiments, the models were substantially more unstable, making a relatively small effect difficult to distinguish from the general variability of training. The results presented here should therefore be interpreted as evidence that the choice of violation definition can affect optimization dynamics, rather than as conclusive evidence that the absolute definition is universally superior.
+
+Overall, the comparison shows that the relative and absolute violations are mathematically very similar and, when the overall statistic is stable, mainly differ by a rescaling that can be absorbed into the fairness strength hyperparameter. Nevertheless, in mini-batch training, the dependence of the relative violation on the batch-specific overall statistic can introduce additional variation into the fairness loss. In the experiment considered here, this was associated with slightly better fairness and decision performance for the absolute formulation.

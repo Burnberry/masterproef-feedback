@@ -1,0 +1,40 @@
+\chapter{Combined Fairness Definitions}
+It can be desirable for models to fulfill multiple fairness definitions. However, previous works have shown that some combinations of fairness constraints are incompatible, except in degenerative cases \cite{fairness_incompatibility}. On the other hand Defrance \& De Bie \cite{max_combinations} provide a systematic analysis of the theoretical compatibility of different fairness constraints and identifies the combinations that can be satisfied simultaneously without necessarily resulting in a degenerate model. This analysis identifies twelve maximal compatible sets of constraints, consisting of five combinations of three constraints and seven combinations of two constraints. \todo{TODO: add citations + explain in detail in literary review + explain base rate of ACSIncome here + in discussion}
+
+This chapter experimentally evaluates these theoretically compatible combinations. The aim is to determine whether the theoretical compatibility of fairness constraints translates into practical compatibility during model training, and to investigate how combining multiple constraints affects model performance.
+
+\section{Methodology}
+Models are evaluated for each of the theoretically compatible combinations of fairness definitions. An unconstrained baseline model is used as a reference to determine whether applying the fairness constraints results in an improvement in the corresponding fairness metrics and to assess the effect on predictive performance. To apply a combination of fairness metrics multiple fairrets will be used.
+
+\subsection{Fairness Constraint Configuration}
+When combining two fairness metrics, their individual losses are calculated separately and summed to form the combined fairness loss. Because each fairret using the same strength can influence a model at a different rate, each metric is assigned a separate strength parameter for each combination.
+
+Finding suitable strengths is non-trivial because increasing the strength of one constraint can affect the value of the another metric. Improving one metric may therefore come at the expense of the another. To find suitable configurations, an initial set of constraint strengths is selected and iteratively adjusted according as follows.
+As long as the model does not perform notably better than the baseline for the fairness combination, the weakest performing metric has its strength increased until it does perform notably better than the baseline model. If it does, the combination is deemed satisfiable and the strengths will be used for evaluation. If the model performance drops so low it no longer is meaningful, the combination is deemed unsatisfiable using this method.
+
+\subsection{Evaluation}
+After suitable constraint strengths have been identified, the configurations are evaluated using multiple independent training runs. For each run, a model is first trained using the unconstrained baseline configuration. The final training steps are then performed with the selected fairness constraints added to the objective.
+
+For each resulting model, the relevant fairness metrics and predictive performance are recorded. These results are then compared with the unconstrained baseline. This makes it possible to assess both whether the theoretically compatible combinations improve the intended fairness metrics in practice and what effect this has on predictive performance.
+
+\section{Results}
+For each fairness combination, a fairness strength configuration was found and test runs were performed to evaluate the performance and fairness violations. All scores can be found in table \ref{table:combined} below, the relevant metrics are highlighted per combination. 
+Figures \ref{fig:pair1} up to \ref{fig:pair21} visualise this data for each pair of constraints, to compare against the baseline and single constraint models. Figures \ref{fig:triple1} up to \ref{fig:triple5} do this too for each trio of constraints.
+
+Reviewing these graphs shows in nearly all cases the combinations of fairness metrics could be substantially improved. The exceptions for this are PP-ACC \ref{fig:PP-ACC} and EO-TE \ref{fig:EO-TE}. This is because of poor tuning of the fairness strengths, as these aren't maximal fairness combinations, PP-FOR-ACC \ref{fig:PP-FOR-ACC} and EO-PP-TE \ref{fig:EO-PP-TE} show these pairs can be substantially satisfied.
+
+The AUROC scores stay in an acceptable range, however it's clear not every combination is affected equally. ACC-TE improved the violations significantly while achieving an AUROC score above 0.89. On the other hand EO-FOR drops to an AUROC of 0.77 for comparable improvements to the violations.
+\todo{TODO: optional, Check with base rates diffs if this can be explained with min max ranges in MAX paper}
+
+The pairs EO-PP, EO-TE, PP-TE, PE-FOR, PE-TE and FOR-TE are all special cases of non-maximal combinations. These have the property of satisfying their respective maximal trio of constraints EO-PP-TE and PE-FOR-TE \cite{max_combinations}.
+This is present in the results of table \ref{table:combined} for PE-FOR, EO-PP and PE-TE. As for EO-TE, PP-TE and FOR-TE the opposite is true, the supposed third constraint performs worse than the baseline. When tuning FOR-TE with stronger fairness constraints, the third constraint PE does improve substantially. Figures \ref{fig:forte} show the PE violation initially gets worse, but as the FOR violation improves further while TE remains stable and low, PE starts improving as well. EO-TE and PP-TE showed similar training behaviour.
+
+\input{chapters/combined/table.tex}
+\input{chapters/combined/pair_graphs.tex}
+\input{chapters/combined/triple_graphs.tex}
+\input{chapters/combined/forte.tex}
+
+\section{Discussion}
+
+The results provide evidence that the theoretically compatible combinations of fairness constraints can also be applied in practice without necessarily resulting in degenerate models. For nearly all evaluated combinations, the relevant fairness metrics could be improved compared with the unconstrained baseline while retaining acceptable predictive performance. This supports the theoretical compatibility analysis of Defrance \& De Bie \cite{max_combinations}.
+\todo{TODO: improve discussion}
